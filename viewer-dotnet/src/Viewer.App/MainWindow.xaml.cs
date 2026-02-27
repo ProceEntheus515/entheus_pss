@@ -21,6 +21,16 @@ public partial class MainWindow : Window
         BuildLayoutFromSelection();
     }
 
+    private void OnLayoutSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        BuildLayoutFromSelection();
+    }
+
     private void OnGenerateJsonClick(object sender, RoutedEventArgs e)
     {
         if (_cells.Count == 0)

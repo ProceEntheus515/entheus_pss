@@ -24,7 +24,8 @@
             <ComboBox x:Name="LayoutSelector"
                       Width="120"
                       VerticalAlignment="Center"
-                      SelectedIndex="0">
+                      SelectedIndex="0"
+                      SelectionChanged="OnLayoutSelectionChanged">
                 <ComboBoxItem Content="2x2" />
                 <ComboBoxItem Content="3x3" />
             </ComboBox>
