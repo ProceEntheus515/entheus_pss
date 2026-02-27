@@ -1,0 +1,46 @@
+<Window x:Class="Viewer.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Entheus Stream Analitycs Viewer"
+        Height="600"
+        Width="900"
+        Loaded="OnLoaded">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Barra superior de control simple -->
+        <StackPanel Grid.Row="0"
+                    Orientation="Horizontal"
+                    Margin="8">
+            <TextBlock Text="Layout de prueba:"
+                       VerticalAlignment="Center"
+                       Margin="0,0,8,0" />
+            <ComboBox x:Name="LayoutSelector"
+                      Width="120"
+                      VerticalAlignment="Center"
+                      SelectedIndex="0">
+                <ComboBoxItem Content="2x2" />
+                <ComboBoxItem Content="3x3" />
+            </ComboBox>
+
+            <Button Content="Generar JSON de /infer"
+                    Margin="16,0,0,0"
+                    Padding="8,4"
+                    Click="OnGenerateJsonClick" />
+        </StackPanel>
+
+        <!-- Zona del grid de cámaras ficticio -->
+        <ScrollViewer Grid.Row="1"
+                      Margin="8">
+            <UniformGrid x:Name="CellsGrid"
+                         Rows="2"
+                         Columns="2" />
+        </ScrollViewer>
+    </Grid>
+</Window>
