@@ -1,0 +1,144 @@
+<Window x:Class="Viewer.App.ConnectionConfigWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Configuración de conexión RTSP"
+        Height="320"
+        Width="520"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />  <!-- 0: Nombre perfil -->
+            <RowDefinition Height="Auto" />  <!-- 1: Usuario -->
+            <RowDefinition Height="Auto" />  <!-- 2: Password -->
+            <RowDefinition Height="Auto" />  <!-- 3: Puerto -->
+            <RowDefinition Height="Auto" />  <!-- 4: Título cámaras + botón agregar -->
+            <RowDefinition Height="Auto" />  <!-- 5: Cabecera columnas -->
+            <RowDefinition Height="*" />     <!-- 6: Lista de cámaras -->
+            <RowDefinition Height="Auto" />  <!-- 7: Botones -->
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Nombre del perfil -->
+        <TextBlock Grid.Row="0"
+                   Grid.Column="0"
+                   Text="Nombre del perfil:"
+                   Margin="0,0,8,8"
+                   VerticalAlignment="Center" />
+        <TextBox x:Name="ProfileNameTextBox"
+                 Grid.Row="0"
+                 Grid.Column="1"
+                 Margin="0,0,0,8" />
+
+        <!-- Credenciales compartidas -->
+        <TextBlock Grid.Row="1"
+                   Grid.Column="0"
+                   Text="Usuario:"
+                   Margin="0,0,8,8"
+                   VerticalAlignment="Center" />
+        <TextBox x:Name="UserTextBox"
+                 Grid.Row="1"
+                 Grid.Column="1"
+                 Margin="0,0,0,8" />
+
+        <TextBlock Grid.Row="2"
+                   Grid.Column="0"
+                   Text="Password:"
+                   Margin="0,0,8,8"
+                   VerticalAlignment="Center" />
+        <PasswordBox x:Name="PasswordBox"
+                     Grid.Row="2"
+                     Grid.Column="1"
+                     Margin="0,0,0,8" />
+
+        <TextBlock Grid.Row="3"
+                   Grid.Column="0"
+                   Text="Puerto RTSP:"
+                   Margin="0,0,8,8"
+                   VerticalAlignment="Center" />
+        <TextBox x:Name="PortTextBox"
+                 Grid.Row="3"
+                 Grid.Column="1"
+                 Margin="0,0,0,8"
+                 Text="554" />
+
+        <!-- Lista de cámaras: IP + channel -->
+        <Grid Grid.Row="4"
+              Grid.Column="0"
+              Grid.ColumnSpan="2"
+              Margin="0,4,0,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="Cámaras (IP + channel):"
+                       VerticalAlignment="Center" />
+
+            <Button Grid.Column="1"
+                    Content="Agregar cámara"
+                    Width="120"
+                    Margin="8,0,0,0"
+                    Padding="6,3"
+                    Click="OnAddCameraClick" />
+        </Grid>
+
+        <!-- Cabecera de columnas de cámaras -->
+        <Grid Grid.Row="5"
+              Grid.Column="0"
+              Grid.ColumnSpan="2"
+              Margin="0,0,0,2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="80" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="IP / host"
+                       FontWeight="Bold"
+                       Margin="0,0,8,0" />
+            <TextBlock Grid.Column="1"
+                       Text="Channel"
+                       FontWeight="Bold"
+                       Margin="0,0,8,0" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="6"
+                      Grid.Column="0"
+                      Grid.ColumnSpan="2"
+                      VerticalScrollBarVisibility="Auto"
+                      Margin="0,0,0,8"
+                      Height="120">
+            <StackPanel x:Name="CamerasPanel"
+                        Orientation="Vertical" />
+        </ScrollViewer>
+
+        <!-- Botones -->
+        <StackPanel Grid.Row="7"
+                    Grid.Column="0"
+                    Grid.ColumnSpan="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,8,0,0">
+            <Button Content="Cancelar"
+                    Width="90"
+                    Margin="0,0,8,0"
+                    IsCancel="True" />
+            <Button Content="Guardar"
+                    Width="90"
+                    IsDefault="True"
+                    Click="OnSaveClick" />
+        </StackPanel>
+    </Grid>
+</Window>
+
+

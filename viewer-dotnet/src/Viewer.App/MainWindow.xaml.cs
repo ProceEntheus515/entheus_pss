@@ -16,14 +16,18 @@ public partial class MainWindow : Window
     private readonly List<GridCell> _cells = new();
 
     private LibVLC? _libVlc;
-    private VlcMediaPlayer? _mediaPlayer;
-    private Media? _currentMedia;
-    private readonly VideoView _mainVideoView = new()
+    private readonly List<ConnectionProfile> _profiles = new();
+    private List<CameraConfig> _configuredCameras = new();
+
+    private sealed class CameraView
     {
-        Background = Brushes.Black,
-        HorizontalAlignment = HorizontalAlignment.Stretch,
-        VerticalAlignment = VerticalAlignment.Stretch,
-    };
+        public CameraConfig Camera { get; init; } = null!;
+        public VlcMediaPlayer Player { get; init; } = null!;
+        public Media? Media { get; set; }
+        public VideoView View { get; init; } = null!;
+    }
+
+    private readonly List<CameraView> _cameraViews = new();
 
     public MainWindow()
     {
@@ -39,16 +43,9 @@ public partial class MainWindow : Window
                 "--avcodec-hw=none");
             _libVlc.Log += OnVlcLog;
 
-            _mediaPlayer = new VlcMediaPlayer(_libVlc);
-            _mainVideoView.MediaPlayer = _mediaPlayer;
-
-            _mediaPlayer.Opening += (_, _) => AppendLog("INFO", "Abriendo stream RTSP en LibVLC.");
-            _mediaPlayer.Playing += (_, _) => AppendLog("INFO", "Stream RTSP en reproducción en LibVLC.");
-            _mediaPlayer.Stopped += (_, _) => AppendLog("INFO", "Stream RTSP detenido en LibVLC.");
-            _mediaPlayer.EncounteredError += (_, _) =>
-                AppendLog("ERROR", "LibVLC reportó un error al reproducir el stream RTSP.");
-
             AppendLog("INFO", "LibVLC inicializado correctamente.");
+
+            LoadProfiles();
         }
         catch (Exception ex)
         {
@@ -56,6 +53,20 @@ public partial class MainWindow : Window
         }
 
         BuildLayoutFromSelection();
+    }
+
+    private void LoadProfiles()
+    {
+        _profiles.Clear();
+        _profiles.AddRange(ConnectionProfilesStore.Load());
+
+        ProfileComboBox.ItemsSource = null;
+        ProfileComboBox.ItemsSource = _profiles;
+
+        if (_profiles.Count > 0)
+        {
+            ProfileComboBox.SelectedIndex = 0;
+        }
     }
 
     private void OnVlcLog(object? sender, LogEventArgs e)
@@ -116,113 +127,62 @@ public partial class MainWindow : Window
 
     private void OnBuildSmartPssUrlClick(object sender, RoutedEventArgs e)
     {
-        var selectedSystem = (SystemSelector.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? string.Empty;
-
-        if (!selectedSystem.StartsWith("SmartPSS", StringComparison.OrdinalIgnoreCase))
+        var dialog = new ConnectionConfigWindow
         {
-            AppendLog("INFO", "Sistema seleccionado distinto de SmartPSS; por ahora solo se soporta SmartPSS.");
+            Owner = this,
+        };
 
-            MessageBox.Show(
-                "Por ahora solo está soportado el constructor de enlaces SmartPSS.",
-                "Constructor de enlaces",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+        var result = dialog.ShowDialog();
 
+        if (result != true || dialog.Cameras.Count == 0)
+        {
             return;
         }
 
-        var user = RtspUserTextBox.Text?.Trim() ?? string.Empty;
-        var password = RtspPasswordBox.Password ?? string.Empty;
-        var host = RtspHostTextBox.Text?.Trim() ?? string.Empty;
-        var portText = RtspPortTextBox.Text?.Trim() ?? "554";
+        var profileName = dialog.ProfileName;
+        var existing = _profiles.FirstOrDefault(p =>
+            string.Equals(p.Name, profileName, StringComparison.OrdinalIgnoreCase));
 
-        if (string.IsNullOrWhiteSpace(user) ||
-            string.IsNullOrWhiteSpace(password) ||
-            string.IsNullOrWhiteSpace(host) ||
-            string.IsNullOrWhiteSpace(portText))
+        if (existing is null)
         {
-            AppendLog("WARN", "Intento de construir enlace RTSP con campos incompletos.");
-
-            MessageBox.Show(
-                "Debe completar usuario, contraseña, host y puerto para construir el enlace RTSP.",
-                "Datos incompletos",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-
-            return;
-        }
-
-        if (!int.TryParse(portText, out var port) || port <= 0 || port > 65535)
-        {
-            AppendLog("WARN", $"Puerto inválido especificado: '{portText}'.");
-
-            MessageBox.Show(
-                "El puerto especificado no es válido.",
-                "Puerto inválido",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-
-            return;
-        }
-
-        var encodedPassword = Uri.EscapeDataString(password);
-        var rtspUrl =
-            $"rtsp://{user}:{encodedPassword}@{host}:{port}/cam/realmonitor?channel=1&subtype=0";
-
-        AppendLog("INFO", $"Enlace RTSP tipo SmartPSS construido: {rtspUrl}");
-
-        if (!TryStartRtspPlayback(rtspUrl))
-        {
-            MessageBox.Show(
-                rtspUrl,
-                "Enlace RTSP tipo SmartPSS (error al reproducir, ver logs)",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            existing = new ConnectionProfile
+            {
+                Name = profileName,
+                Cameras = dialog.Cameras.ToList(),
+            };
+            _profiles.Add(existing);
         }
         else
         {
-            MessageBox.Show(
-                rtspUrl,
-                "Enlace RTSP tipo SmartPSS (reproducción iniciada)",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            existing.Cameras = dialog.Cameras.ToList();
         }
+
+        ConnectionProfilesStore.Save(_profiles);
+        LoadProfiles();
+
+        ProfileComboBox.SelectedItem = existing;
+
+        _configuredCameras = existing.Cameras;
+
+        AppendLog("INFO", $"Configuración RTSP guardada en perfil '{existing.Name}' con {_configuredCameras.Count} cámaras.");
+
+        StartRtspForConfiguredCameras();
     }
 
-    private bool TryStartRtspPlayback(string source)
+    private void OnConnectProfileClick(object sender, RoutedEventArgs e)
     {
-        if (_libVlc is null || _mediaPlayer is null)
+        if (ProfileComboBox.SelectedItem is not ConnectionProfile profile ||
+            profile.Cameras.Count == 0)
         {
-            AppendLog("ERROR", "LibVLC no está inicializado; no se puede iniciar la reproducción RTSP.");
-            return false;
+            AppendLog("WARN", "No hay perfil seleccionado o el perfil no tiene cámaras configuradas.");
+            return;
         }
 
-        try
-        {
-            AppendLog("INFO", $"Intentando reproducir fuente: {source}");
+        _configuredCameras = profile.Cameras;
 
-            var isLocation = Uri.TryCreate(source, UriKind.Absolute, out var uri) &&
-                             (uri.Scheme is "rtsp" or "rtmp" or "http" or "https");
+        AppendLog("INFO", $"Conectando perfil '{profile.Name}' con {_configuredCameras.Count} cámaras.");
 
-            _currentMedia?.Dispose();
-            _currentMedia = isLocation
-                ? new Media(_libVlc, source, FromType.FromLocation)
-                : new Media(_libVlc, source, FromType.FromPath);
-
-            var started = _mediaPlayer.Play(_currentMedia);
-
-            if (!started)
-            {
-                AppendLog("ERROR", "MediaPlayer.Play devolvió false al intentar iniciar el stream RTSP.");
-            }
-
-            return started;
-        }
-        catch (Exception ex)
-        {
-            AppendLog("ERROR", $"Excepción al iniciar reproducción RTSP: {ex.Message}");
-            return false;
-        }
+        StartRtspForConfiguredCameras();
     }
 
     private void BuildLayoutFromSelection()
@@ -240,12 +200,80 @@ public partial class MainWindow : Window
             _ => new LayoutConfig { Id = "1x1", Rows = 1, Columns = 1 },
         };
 
-        var cameras = BuildSampleCameras(layout);
+        var cameras = _configuredCameras.Count > 0
+            ? _configuredCameras
+            : BuildSampleCameras(layout);
 
         _cells.Clear();
         _cells.AddRange(GridLayoutManager.BuildGrid(layout, cameras));
 
         RenderGrid(layout);
+    }
+
+    private void StartRtspForConfiguredCameras()
+    {
+        if (_libVlc is null)
+        {
+            AppendLog("ERROR", "LibVLC no está inicializado; no se puede iniciar la reproducción RTSP.");
+            return;
+        }
+
+        foreach (var view in _cameraViews)
+        {
+            try
+            {
+                view.Player.Stop();
+                view.Media?.Dispose();
+                view.Player.Dispose();
+            }
+            catch
+            {
+                // Ignoramos errores de limpieza en esta fase
+            }
+        }
+
+        _cameraViews.Clear();
+
+        foreach (var camera in _configuredCameras)
+        {
+            try
+            {
+                AppendLog("INFO", $"Iniciando reproducción RTSP para cámara '{camera.Name}' ({camera.RtspUrl})");
+
+                var player = new VlcMediaPlayer(_libVlc);
+
+                player.Opening += (_, _) => AppendLog("INFO", $"[{camera.Name}] Abriendo stream RTSP.");
+                player.Playing += (_, _) => AppendLog("INFO", $"[{camera.Name}] Stream RTSP en reproducción.");
+                player.Stopped += (_, _) => AppendLog("INFO", $"[{camera.Name}] Stream RTSP detenido.");
+                player.EncounteredError += (_, _) =>
+                    AppendLog("ERROR", $"[{camera.Name}] LibVLC reportó un error al reproducir el stream RTSP.");
+
+                var media = new Media(_libVlc, camera.RtspUrl, FromType.FromLocation);
+
+                var view = new VideoView
+                {
+                    MediaPlayer = player,
+                    Background = Brushes.Black,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                };
+
+                _cameraViews.Add(
+                    new CameraView
+                    {
+                        Camera = camera,
+                        Player = player,
+                        Media = media,
+                        View = view,
+                    });
+            }
+            catch (Exception ex)
+            {
+                AppendLog("ERROR", $"Excepción al iniciar reproducción RTSP para cámara '{camera.Name}': {ex.Message}");
+            }
+        }
+
+        BuildLayoutFromSelection();
     }
 
     private static List<CameraConfig> BuildSampleCameras(LayoutConfig layout)
@@ -293,21 +321,32 @@ public partial class MainWindow : Window
                 TextAlignment = TextAlignment.Center,
             };
 
-            var shouldAttachVideo = _mediaPlayer is not null && CellsGrid.Children.Count == 0;
+            var cameraForCell = _configuredCameras.FirstOrDefault(c => string.Equals(c.Id, cell.CameraId, StringComparison.OrdinalIgnoreCase));
+            var cameraView = cameraForCell is null
+                ? null
+                : _cameraViews.FirstOrDefault(v => string.Equals(v.Camera.Id, cameraForCell.Id, StringComparison.OrdinalIgnoreCase));
 
-            if (shouldAttachVideo)
+            if (cameraView is not null)
             {
                 var container = new Grid();
-
-                if (_mainVideoView.Parent is Panel currentParentPanel)
+                if (cameraView.View.Parent is Panel currentParentPanel)
                 {
-                    currentParentPanel.Children.Remove(_mainVideoView);
+                    currentParentPanel.Children.Remove(cameraView.View);
                 }
 
-                container.Children.Add(_mainVideoView);
+                container.Children.Add(cameraView.View);
                 container.Children.Add(text);
 
                 border.Child = container;
+
+                if (cameraView.Media is not null && !cameraView.Player.IsPlaying)
+                {
+                    var started = cameraView.Player.Play(cameraView.Media);
+                    if (!started)
+                    {
+                        AppendLog("ERROR", $"[{cameraView.Camera.Name}] MediaPlayer.Play devolvió false al intentar iniciar el stream RTSP.");
+                    }
+                }
             }
             else
             {

@@ -13,7 +13,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="0" />
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0"
@@ -47,61 +47,28 @@
                         Margin="16,0,0,0"
                         Padding="8,4"
                         Click="OnGenerateJsonClick" />
+
+                <TextBlock Text="Perfil:"
+                           Foreground="White"
+                           VerticalAlignment="Center"
+                           Margin="16,0,4,0" />
+                <ComboBox x:Name="ProfileComboBox"
+                          Width="200"
+                          Height="28"
+                          VerticalAlignment="Center"
+                          DisplayMemberPath="Name" />
+                <Button Content="Conectar perfil"
+                        Margin="8,0,0,0"
+                        Padding="8,4"
+                        Click="OnConnectProfileClick" />
             </StackPanel>
 
-            <!-- Constructor de enlaces RTSP tipo SmartPSS -->
+            <!-- Botón de configuración de conexión RTSP tipo SmartPSS -->
             <StackPanel Grid.Row="1"
                         Orientation="Horizontal"
                         Margin="0,4,0,0">
-                <TextBlock Text="Sistema:"
-                           Foreground="White"
-                           VerticalAlignment="Center"
-                           Margin="0,0,4,0" />
-                <ComboBox x:Name="SystemSelector"
-                          Width="150"
-                          Height="28"
-                          VerticalAlignment="Center"
-                          Margin="0,0,8,0">
-                    <ComboBoxItem Content="SmartPSS (Dahua)"
-                                  IsSelected="True" />
-                </ComboBox>
-
-                <TextBlock Text="Usuario:"
-                           Foreground="White"
-                           VerticalAlignment="Center"
-                           Margin="0,0,4,0" />
-                <TextBox x:Name="RtspUserTextBox"
-                         Width="90"
-                         Margin="0,0,8,0" />
-
-                <TextBlock Text="Password:"
-                           Foreground="White"
-                           VerticalAlignment="Center"
-                           Margin="0,0,4,0" />
-                <PasswordBox x:Name="RtspPasswordBox"
-                             Width="90"
-                             Margin="0,0,8,0" />
-
-                <TextBlock Text="IP / host:"
-                           Foreground="White"
-                           VerticalAlignment="Center"
-                           Margin="0,0,4,0" />
-                <TextBox x:Name="RtspHostTextBox"
-                         Width="120"
-                         Margin="0,0,8,0" />
-
-                <TextBlock Text="Puerto:"
-                           Foreground="White"
-                           VerticalAlignment="Center"
-                           Margin="0,0,4,0" />
-                <TextBox x:Name="RtspPortTextBox"
-                         Width="60"
-                         Margin="0,0,8,0"
-                         Text="554" />
-
-                <Button Content="Construir enlace SmartPSS"
-                        Margin="8,0,0,0"
-                        Padding="8,4"
+                <Button Content="Configurar conexión RTSP (SmartPSS)"
+                        Padding="10,6"
                         Click="OnBuildSmartPssUrlClick" />
             </StackPanel>
         </Grid>
@@ -118,11 +85,12 @@
         <!-- Panel simple de logs -->
         <TextBox x:Name="LogTextBox"
                  Grid.Row="2"
-                 Height="80"
+                 Height="0"
                  Background="#11151C"
                  Foreground="#D0D8E5"
                  BorderBrush="#252A34"
                  Margin="0"
+                 Visibility="Collapsed"
                  IsReadOnly="True"
                  TextWrapping="Wrap"
                  VerticalScrollBarVisibility="Auto" />
