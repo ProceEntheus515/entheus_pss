@@ -309,7 +309,7 @@ public partial class MainWindow : Window
                 Background = new SolidColorBrush(Color.FromRgb(30, 60, 110)),
                 BorderBrush = Brushes.White,
                 BorderThickness = new Thickness(1),
-                Margin = new Thickness(4),
+                Margin = new Thickness(1),
             };
 
             var text = new TextBlock
