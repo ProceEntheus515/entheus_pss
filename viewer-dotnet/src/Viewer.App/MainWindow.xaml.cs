@@ -18,6 +18,12 @@ public partial class MainWindow : Window
     private LibVLC? _libVlc;
     private VlcMediaPlayer? _mediaPlayer;
     private Media? _currentMedia;
+    private readonly VideoView _mainVideoView = new()
+    {
+        Background = Brushes.Black,
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        VerticalAlignment = VerticalAlignment.Stretch,
+    };
 
     public MainWindow()
     {
@@ -34,6 +40,7 @@ public partial class MainWindow : Window
             _libVlc.Log += OnVlcLog;
 
             _mediaPlayer = new VlcMediaPlayer(_libVlc);
+            _mainVideoView.MediaPlayer = _mediaPlayer;
 
             _mediaPlayer.Opening += (_, _) => AppendLog("INFO", "Abriendo stream RTSP en LibVLC.");
             _mediaPlayer.Playing += (_, _) => AppendLog("INFO", "Stream RTSP en reproducción en LibVLC.");
@@ -209,13 +216,6 @@ public partial class MainWindow : Window
                 AppendLog("ERROR", "MediaPlayer.Play devolvió false al intentar iniciar el stream RTSP.");
             }
 
-            if (started)
-            {
-                var debugWindow = new VideoDebugWindow(_mediaPlayer);
-                debugWindow.Owner = this;
-                debugWindow.Show();
-            }
-
             return started;
         }
         catch (Exception ex)
@@ -274,9 +274,6 @@ public partial class MainWindow : Window
         CellsGrid.Rows = layout.Rows;
         CellsGrid.Columns = layout.Columns;
 
-        var isSingleCellLayout = layout.Rows == 1 && layout.Columns == 1;
-        var videoAttached = false;
-
         foreach (var cell in _cells)
         {
             var border = new Border
@@ -296,25 +293,21 @@ public partial class MainWindow : Window
                 TextAlignment = TextAlignment.Center,
             };
 
-            var shouldAttachVideo = _mediaPlayer is not null && (!videoAttached && isSingleCellLayout || !isSingleCellLayout && !videoAttached);
+            var shouldAttachVideo = _mediaPlayer is not null && CellsGrid.Children.Count == 0;
 
             if (shouldAttachVideo)
             {
                 var container = new Grid();
 
-                var videoView = new VideoView
+                if (_mainVideoView.Parent is Panel currentParentPanel)
                 {
-                    MediaPlayer = _mediaPlayer,
-                    Background = Brushes.Black,
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    VerticalAlignment = VerticalAlignment.Stretch,
-                };
+                    currentParentPanel.Children.Remove(_mainVideoView);
+                }
 
-                container.Children.Add(videoView);
+                container.Children.Add(_mainVideoView);
                 container.Children.Add(text);
 
                 border.Child = container;
-                videoAttached = true;
             }
             else
             {

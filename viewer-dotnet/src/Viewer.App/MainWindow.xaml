@@ -106,14 +106,14 @@
             </StackPanel>
         </Grid>
 
-        <!-- Zona del grid de cámaras ficticio -->
-        <ScrollViewer Grid.Row="1"
-                      Margin="0,0,0,4"
-                      Background="#11151C">
+        <!-- Zona principal de grid de cámaras -->
+        <Grid Grid.Row="1"
+              Margin="0,0,0,4"
+              Background="#11151C">
             <UniformGrid x:Name="CellsGrid"
                          Rows="2"
                          Columns="2" />
-        </ScrollViewer>
+        </Grid>
 
         <!-- Panel simple de logs -->
         <TextBox x:Name="LogTextBox"
