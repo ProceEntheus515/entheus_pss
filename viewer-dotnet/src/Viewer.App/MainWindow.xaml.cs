@@ -187,17 +187,16 @@ public partial class MainWindow : Window
 
     private void BuildLayoutFromSelection()
     {
-        var selectedLayout = (LayoutSelector.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "1x1";
+        var selectedLayout = (LayoutSelector.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "2x2";
 
         var layout = selectedLayout switch
         {
-            "1x1" => new LayoutConfig { Id = "1x1", Rows = 1, Columns = 1 },
             "2x2" => new LayoutConfig { Id = "2x2", Rows = 2, Columns = 2 },
             "3x3" => new LayoutConfig { Id = "3x3", Rows = 3, Columns = 3 },
             "4x4" => new LayoutConfig { Id = "4x4", Rows = 4, Columns = 4 },
             "4x5" => new LayoutConfig { Id = "4x5", Rows = 4, Columns = 5 },
             "5x4" => new LayoutConfig { Id = "5x4", Rows = 5, Columns = 4 },
-            _ => new LayoutConfig { Id = "1x1", Rows = 1, Columns = 1 },
+            _ => new LayoutConfig { Id = "2x2", Rows = 2, Columns = 2 },
         };
 
         var cameras = _configuredCameras.Count > 0

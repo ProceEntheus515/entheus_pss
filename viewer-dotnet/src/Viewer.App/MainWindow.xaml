@@ -38,9 +38,11 @@
                           Margin="0,0,8,0"
                           SelectedIndex="0"
                           SelectionChanged="OnLayoutSelectionChanged">
-                    <ComboBoxItem Content="1x1" />
                     <ComboBoxItem Content="2x2" />
                     <ComboBoxItem Content="3x3" />
+                    <ComboBoxItem Content="4x4" />
+                    <ComboBoxItem Content="4x5" />
+                    <ComboBoxItem Content="5x4" />
                 </ComboBox>
 
                 <Button Content="Generar JSON de /infer"
