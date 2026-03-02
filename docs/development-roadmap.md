@@ -73,6 +73,13 @@ Las fases están pensadas para ejecutarse en orden, pero algunas subtareas se pu
 
 **Criterio de salida**: viewer muestra cámaras reales por RTSP y puede capturar frames desde cada celda.
 
+### Estado Fase 4 (2026-03-02)
+
+- [x] Librería RTSP elegida e integrada: `LibVLCSharp.WPF` + `VideoLAN.LibVLC.Windows` en `Viewer.App`.
+- [x] `Viewer.App` reproduce un stream RTSP real en layouts 1x1 y 2x2, manteniendo la conexión al cambiar de layout.
+- [x] POC visual validado con `VideoDebugWindow` usando el mismo `MediaPlayer`.
+- [ ] API de captura de frame por celda pendiente de implementar (se abordará en la siguiente iteración de Fase 4 / inicio Fase 5).
+
 ---
 
 ## Fase 5 – YOLOv8 real en el backend
