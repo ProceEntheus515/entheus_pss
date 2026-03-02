@@ -196,6 +196,8 @@ public partial class MainWindow : Window
             "4x4" => new LayoutConfig { Id = "4x4", Rows = 4, Columns = 4 },
             "4x5" => new LayoutConfig { Id = "4x5", Rows = 4, Columns = 5 },
             "5x4" => new LayoutConfig { Id = "5x4", Rows = 5, Columns = 4 },
+            "3x4" => new LayoutConfig { Id = "3x4", Rows = 3, Columns = 4 },
+            "4x3" => new LayoutConfig { Id = "4x3", Rows = 4, Columns = 3 },
             _ => new LayoutConfig { Id = "2x2", Rows = 2, Columns = 2 },
         };
 

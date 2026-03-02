@@ -43,6 +43,8 @@
                     <ComboBoxItem Content="4x4" />
                     <ComboBoxItem Content="4x5" />
                     <ComboBoxItem Content="5x4" />
+                    <ComboBoxItem Content="3x4" />
+                    <ComboBoxItem Content="4x3" />
                 </ComboBox>
 
                 <Button Content="Generar JSON de /infer"
