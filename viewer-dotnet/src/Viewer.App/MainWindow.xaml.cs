@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Input;
 using LibVLCSharp.Shared;
 using LibVLCSharp.WPF;
 using VlcMediaPlayer = LibVLCSharp.Shared.MediaPlayer;
@@ -28,6 +29,9 @@ public partial class MainWindow : Window
     }
 
     private readonly List<CameraView> _cameraViews = new();
+
+    private bool _isSingleCameraView;
+    private string? _singleCameraId;
 
     public MainWindow()
     {
@@ -95,8 +99,14 @@ public partial class MainWindow : Window
         var timestamp = DateTime.Now.ToString("HH:mm:ss");
         var line = $"{timestamp} [{level}] {message}";
 
+        var isAtBottom = Math.Abs(LogTextBox.VerticalOffset + LogTextBox.ViewportHeight - LogTextBox.ExtentHeight) < 1.0;
+
         LogTextBox.AppendText(line + Environment.NewLine);
-        LogTextBox.ScrollToEnd();
+
+        if (isAtBottom)
+        {
+            LogTextBox.ScrollToEnd();
+        }
     }
 
     private void OnLayoutSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -187,6 +197,11 @@ public partial class MainWindow : Window
 
     private void BuildLayoutFromSelection()
     {
+        if (_isSingleCameraView)
+        {
+            return;
+        }
+
         var selectedLayout = (LayoutSelector.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "2x2";
 
         var layout = selectedLayout switch
@@ -243,6 +258,12 @@ public partial class MainWindow : Window
 
                 var player = new VlcMediaPlayer(_libVlc);
 
+                // Deshabilitar manejo interno de ratón/teclado de LibVLC para que
+                // el doble click no intente poner en fullscreen nativo y podamos
+                // manejarlo nosotros desde WPF.
+                player.EnableMouseInput = false;
+                player.EnableKeyInput = false;
+
                 player.Opening += (_, _) => AppendLog("INFO", $"[{camera.Name}] Abriendo stream RTSP.");
                 player.Playing += (_, _) => AppendLog("INFO", $"[{camera.Name}] Stream RTSP en reproducción.");
                 player.Stopped += (_, _) => AppendLog("INFO", $"[{camera.Name}] Stream RTSP detenido.");
@@ -258,6 +279,9 @@ public partial class MainWindow : Window
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     VerticalAlignment = VerticalAlignment.Stretch,
                 };
+
+                view.Tag = camera.Id;
+                view.PreviewMouseLeftButtonDown += OnCellMouseLeftButtonDown;
 
                 _cameraViews.Add(
                     new CameraView
@@ -313,6 +337,9 @@ public partial class MainWindow : Window
                 Margin = new Thickness(1),
             };
 
+            border.Tag = cell.CameraId;
+            border.PreviewMouseLeftButtonDown += OnCellMouseLeftButtonDown;
+
             var text = new TextBlock
             {
                 Text = $"{cell.CellId}\n{cell.CameraId}",
@@ -356,5 +383,104 @@ public partial class MainWindow : Window
 
             CellsGrid.Children.Add(border);
         }
+    }
+
+    private void OnCellMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount != 2)
+        {
+            return;
+        }
+
+        string? cameraId = null;
+
+        switch (sender)
+        {
+            case Border border:
+                cameraId = border.Tag as string;
+                break;
+            case VideoView view:
+                cameraId = view.Tag as string;
+                break;
+        }
+
+        e.Handled = true;
+
+        if (!_isSingleCameraView)
+        {
+            EnterSingleCameraView(cameraId);
+        }
+        else
+        {
+            ExitSingleCameraView();
+        }
+    }
+
+    private void EnterSingleCameraView(string? cameraId)
+    {
+        _isSingleCameraView = true;
+        _singleCameraId = cameraId;
+
+        CellsGrid.Children.Clear();
+        CellsGrid.Rows = 1;
+        CellsGrid.Columns = 1;
+
+        var border = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(30, 60, 110)),
+            BorderBrush = Brushes.White,
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(1),
+        };
+
+        border.Tag = cameraId;
+        border.PreviewMouseLeftButtonDown += OnCellMouseLeftButtonDown;
+
+        var text = new TextBlock
+        {
+            Text = cameraId is null ? "Sin cámara" : cameraId,
+            Foreground = Brushes.White,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+        };
+
+        var container = new Grid();
+
+        if (cameraId is not null)
+        {
+            var cameraView = _cameraViews.FirstOrDefault(v =>
+                string.Equals(v.Camera.Id, cameraId, StringComparison.OrdinalIgnoreCase));
+
+            if (cameraView is not null)
+            {
+                if (cameraView.View.Parent is Panel currentParentPanel)
+                {
+                    currentParentPanel.Children.Remove(cameraView.View);
+                }
+
+                container.Children.Add(cameraView.View);
+
+                if (cameraView.Media is not null && !cameraView.Player.IsPlaying)
+                {
+                    var started = cameraView.Player.Play(cameraView.Media);
+                    if (!started)
+                    {
+                        AppendLog("ERROR", $"[{cameraView.Camera.Name}] MediaPlayer.Play devolvió false al intentar iniciar el stream RTSP en vista única.");
+                    }
+                }
+            }
+        }
+
+        container.Children.Add(text);
+        border.Child = container;
+        CellsGrid.Children.Add(border);
+    }
+
+    private void ExitSingleCameraView()
+    {
+        _isSingleCameraView = false;
+        _singleCameraId = null;
+        BuildLayoutFromSelection();
     }
 }
