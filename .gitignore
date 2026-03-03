@@ -63,6 +63,7 @@ publish/
 *.code-workspace
 .cursor/
 
+
 ########################
 # Herramientas de empaquetado
 ########################
@@ -84,6 +85,6 @@ publish/
 .coverage.*
 coverage.xml
 htmlcov/
-
+dh-p2p/
 node_modules/
 
