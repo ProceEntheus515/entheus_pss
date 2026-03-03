@@ -85,6 +85,5 @@ publish/
 .coverage.*
 coverage.xml
 htmlcov/
-dh-p2p/
 node_modules/
 
