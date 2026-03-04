@@ -126,17 +126,7 @@ async fn main() {
             pending_addr
         );
 
-        // Establecer el tunel AHORA (relay timer empieza fresco)
-        let socket = match UdpSocket::bind("0.0.0.0:0").await {
-            Ok(s) => s,
-            Err(e) => {
-                println!("[tunnel] Error creando socket: {}", e);
-                drop(pending_client);
-                tokio::time::sleep(Duration::from_secs(3)).await;
-                continue;
-            }
-        };
-
+        // Establecer el tunel AHORA (relay timer empieza fresco). Reintento 1 vez si falla.
         let connection = {
             let mut last_err = String::new();
             let mut conn_opt = None;
@@ -145,15 +135,12 @@ async fn main() {
                     println!("[tunnel] Reintento de handshake (2/2)...");
                     tokio::time::sleep(Duration::from_secs(3)).await;
                 }
-                let sock = if handshake_attempt == 0 {
-                    socket
-                } else {
-                    match UdpSocket::bind("0.0.0.0:0").await {
-                        Ok(s) => s,
-                        Err(e) => {
-                            println!("[tunnel] Error creando socket en reintento: {}", e);
-                            break;
-                        }
+                let sock = match UdpSocket::bind("0.0.0.0:0").await {
+                    Ok(s) => s,
+                    Err(e) => {
+                        last_err = format!("Error creando socket: {}", e);
+                        println!("[tunnel] {}", last_err);
+                        break;
                     }
                 };
                 match p2p_handshake(

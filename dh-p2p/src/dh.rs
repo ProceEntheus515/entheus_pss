@@ -18,6 +18,9 @@ const RELAY_PHASE_RETRIES: u32 = 3;
 /// Segundos base de espera entre reintentos (intento 1: 0s, 2: 2s, 3: 4s).
 const RELAY_BACKOFF_SECS: u64 = 2;
 
+/// Timeout para la primera respuesta STUN en NAT traversal (recv del dispositivo).
+const NAT_TRAVERSAL_TIMEOUT_SECS: u64 = 30;
+
 // ---------------------------------------------------------------------------
 // Tipos publicos para el sistema polivalente
 // ---------------------------------------------------------------------------
@@ -587,16 +590,22 @@ async fn try_direct_p2p(
         .map_err(|e| format!("Error enviando STUN: {}", e))?;
 
     let mut buf = [0u8; 4096];
-    let n = match time::timeout(time::Duration::from_secs(30), socket.recv(&mut buf)).await {
+    let timeout_dur = time::Duration::from_secs(NAT_TRAVERSAL_TIMEOUT_SECS);
+    println!(
+        "[nat] Esperando respuesta del dispositivo (timeout {}s)...",
+        NAT_TRAVERSAL_TIMEOUT_SECS
+    );
+    let started = std::time::Instant::now();
+    let n = match time::timeout(timeout_dur, socket.recv(&mut buf)).await {
         Ok(Ok(n)) => n,
         Ok(Err(e)) => return Err(format!("NAT traversal rechazado: {}", e)),
         Err(_) => {
-            return Err(
-                "Timeout NAT traversal (30s). Causas habituales: NAT simetrico o CGNAT del \
-                 operador en el dispositivo; el dispositivo solo recibe de IPs a las que ya \
-                 envio datos. Usar modo relay (--relay) o comprobar red del dispositivo."
-                    .into(),
-            )
+            let elapsed = started.elapsed().as_secs();
+            return Err(format!(
+                "Timeout NAT traversal (configurado: {}s, transcurrido: {}s). Causas habituales: \
+                 NAT simetrico o CGNAT del operador en el dispositivo. Usar modo relay (--relay).",
+                NAT_TRAVERSAL_TIMEOUT_SECS, elapsed
+            ));
         }
     };
     log_raw_packet("[nat] <<", &buf[0..n]);
