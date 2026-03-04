@@ -157,6 +157,9 @@ pub async fn dh_reader(
                     }
                 }
             }
+            PTCPBody::Heartbeat => {
+                // Solo mantener sesion viva; no hay dato que reenviar al cliente.
+            }
             _ => {}
         }
     }

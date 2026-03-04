@@ -330,8 +330,10 @@ impl PTCP for UdpSocket {
 
         match result {
             Ok(Ok(n)) if n >= 24 => {
+                let body_type = if n > 24 { buf[24] } else { 0 };
                 let packet = PTCPPacket::parse(&buf[0..n]);
                 println!("<<< {}", self.peer_addr().unwrap());
+                println!("[ptcp] body_type=0x{:02x} (0=Sync 0x10=Payload 0x11=Bind 0x12=Status 0x13=Heartbeat other=Command)", body_type);
                 println!("{:?}", packet);
                 packet.try_print_data();
                 println!("---");

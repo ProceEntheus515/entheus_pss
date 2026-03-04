@@ -41,6 +41,15 @@ Options:
           Print help
 ```
 
+### NVR y multiples canales
+
+El tunel maneja **una sesion RTSP** por conexion TCP al puerto local (ej. 8554). El dispositivo puede ser una **camara** o un **NVR** con varios canales:
+
+- **Camara**: una sola fuente; la URL tipica es `.../cam/realmonitor?channel=1&subtype=0`.
+- **NVR**: el mismo serial puede tener 4, 8, etc. canales. Se usa **un solo tunel** y el canal se elige en la URL: `channel=1`, `channel=2`, etc. No hace falta un realm ni conexion distinta por canal; el NVR atiende RTSP en el puerto 554 y el parametro `channel` selecciona la camara.
+
+Si el video no llega (pero la autenticacion y los heartbeats si), en log aparecera `[ptcp] body_type=0x...`. El tipo `0x10` es Payload (datos RTSP); si solo ves `0x00` (Empty) o `0x13` (Heartbeat) y nunca `0x10`, el relay/dispositivo no esta enviando la respuesta RTSP (protocolo propietario Dahua, comportamiento posiblemente distinto en NVR o relay).
+
 ## Python implementation
 
 The Python implementation of DH-P2P is a simple and straightforward approach. It is used for drafting and testing purposes due to its quick and easy-to-write nature. Additionally, the implementation is more linear and follows a top-down execution flow, making it easier to understand. Python, being a popular programming language, further contributes to its accessibility and familiarity among developers.
