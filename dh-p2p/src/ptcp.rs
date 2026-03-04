@@ -292,6 +292,8 @@ impl PTCPSession {
 #[async_trait]
 pub trait PTCP {
     async fn ptcp_request(&self, packet: PTCPPacket);
+    /// Lectura sin timeout (puede bloquear). Preferir ptcp_try_read en handshake/tunnel.
+    #[allow(dead_code)]
     async fn ptcp_read(&self) -> PTCPPacket;
     /// Lectura con timeout de 30s. Devuelve Err si la sesion murio o no hay datos.
     async fn ptcp_try_read(&self) -> Result<PTCPPacket, String>;
@@ -309,6 +311,7 @@ impl PTCP for UdpSocket {
         self.send(&packet).await.unwrap();
     }
 
+    #[allow(dead_code)]
     async fn ptcp_read(&self) -> PTCPPacket {
         println!("### {}", self.peer_addr().unwrap());
 
