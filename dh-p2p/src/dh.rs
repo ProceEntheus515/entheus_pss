@@ -234,7 +234,7 @@ pub async fn p2p_handshake(
     println!("[handshake] Negociando relay en {}...", relay);
 
     let (token, agent) = 'agent_phase: loop {
-        let mut last_err = String::new();
+        let mut last_err;
         for attempt in 0..RELAY_PHASE_RETRIES {
             if attempt > 0 {
                 let backoff = RELAY_BACKOFF_SECS * (attempt as u64);
@@ -276,7 +276,7 @@ pub async fn p2p_handshake(
         return Err("[relay] relay/agent: sin resultado (imposible)".into());
     };
 
-    let mut last_err = String::new();
+    let mut last_err;
     for attempt in 0..RELAY_PHASE_RETRIES {
         if attempt > 0 {
             let backoff = RELAY_BACKOFF_SECS * (attempt as u64);
