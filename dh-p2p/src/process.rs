@@ -146,6 +146,15 @@ pub async fn dh_reader(
                     }
                 }
             }
+            PTCPBody::Command(data) => {
+                // Dispositivo/relay puede responder RTSP en Command en lugar de Payload; reenviar al cliente.
+                let chans = channels.lock().unwrap().clone();
+                for tx in chans.values() {
+                    if tx.send(data.clone()).await.is_err() {
+                        // canal cerrado, ignorar
+                    }
+                }
+            }
             _ => {}
         }
     }
