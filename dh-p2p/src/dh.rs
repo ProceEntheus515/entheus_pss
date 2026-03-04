@@ -542,10 +542,17 @@ async fn try_direct_p2p(
         .map_err(|e| format!("Error enviando STUN: {}", e))?;
 
     let mut buf = [0u8; 4096];
-    let n = match time::timeout(time::Duration::from_secs(5), socket.recv(&mut buf)).await {
+    let n = match time::timeout(time::Duration::from_secs(30), socket.recv(&mut buf)).await {
         Ok(Ok(n)) => n,
         Ok(Err(e)) => return Err(format!("NAT traversal rechazado: {}", e)),
-        Err(_) => return Err("Timeout NAT traversal (posible NAT simetrico)".into()),
+        Err(_) => {
+            return Err(
+                "Timeout NAT traversal (30s). Causas habituales: NAT simetrico o CGNAT del \
+                 operador en el dispositivo; el dispositivo solo recibe de IPs a las que ya \
+                 envio datos. Usar modo relay (--relay) o comprobar red del dispositivo."
+                    .into(),
+            )
+        }
     };
     log_raw_packet("[nat] <<", &buf[0..n]);
 

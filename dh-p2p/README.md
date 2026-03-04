@@ -50,6 +50,10 @@ El tunel maneja **una sesion RTSP** por conexion TCP al puerto local (ej. 8554).
 
 Si el video no llega (pero la autenticacion y los heartbeats si), en log aparecera `[ptcp] body_type=0x...`. El tipo `0x10` es Payload (datos RTSP); si solo ves `0x00` (Empty) o `0x13` (Heartbeat) y nunca `0x10`, el relay/dispositivo no esta enviando la respuesta RTSP (protocolo propietario Dahua, comportamiento posiblemente distinto en NVR o relay).
 
+### Por que falla el directo (NAT) y se usa relay
+
+El intento de conexion **directa P2P** envia un paquete STUN al `PubAddr` del dispositivo (ej. 181.90.202.36:31235). Si el dispositivo esta detras de **NAT simetrico** o **CGNAT** (comun en ISPs residenciales), su router/firewall solo permite trafico entrante desde IPs a las que el dispositivo ya ha enviado datos (p. ej. los servidores de Dahua). Nuestra IP es nueva para el dispositivo, por eso no llega respuesta y hay timeout (30 s). No es un fallo del codigo: el protocolo prevé relay precisamente para estos casos. Con `--relay` se fuerza relay y se evita el intento directo.
+
 ## Python implementation
 
 The Python implementation of DH-P2P is a simple and straightforward approach. It is used for drafting and testing purposes due to its quick and easy-to-write nature. Additionally, the implementation is more linear and follows a top-down execution flow, making it easier to understand. Python, being a popular programming language, further contributes to its accessibility and familiarity among developers.
