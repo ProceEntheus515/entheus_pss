@@ -97,7 +97,8 @@ async fn main() {
     }
     if remote_port == 554 {
         println!(
-            "[config] RTSP URL: rtsp://127.0.0.1{}/cam/realmonitor?channel=1&subtype=0",
+            "[config] RTSP URL: rtsp://{}{}/cam/realmonitor?channel=1&subtype=0",
+            bind_address,
             if bind_port != 554 {
                 format!(":{}", bind_port)
             } else {

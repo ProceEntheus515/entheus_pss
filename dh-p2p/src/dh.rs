@@ -332,6 +332,29 @@ pub async fn p2p_handshake(
 
     // Parsear respuesta del dispositivo
     let data = res.body.ok_or("Respuesta del dispositivo sin body")?;
+
+    // Logs de diagnostico adicionales para entender la politica y parametros del canal P2P
+    let policy = data
+        .get("body/Policy")
+        .cloned()
+        .unwrap_or_else(|| "desconocido".into());
+    let time = data
+        .get("body/Time")
+        .cloned()
+        .unwrap_or_else(|| "desconocido".into());
+    let realm = data
+        .get("body/Realm")
+        .cloned()
+        .unwrap_or_else(|| "desconocido".into());
+    let role = data
+        .get("body/Role")
+        .cloned()
+        .unwrap_or_else(|| "desconocido".into());
+    println!(
+        "[smart] p2p-channel => Policy={}, Time={}, Realm={}, Role={}",
+        policy, time, realm, role
+    );
+
     let raw_device_laddr = data
         .get("body/LocalAddr")
         .ok_or("Dispositivo no envio LocalAddr")?
@@ -493,6 +516,13 @@ async fn try_direct_p2p(
     sign: &[u8],
     authenticated: bool,
 ) -> Result<PTCPSession, String> {
+    println!(
+        "[nat] Parametros directo: PubAddr={}, LocalAddr={}, auth={}",
+        device_pub_addr,
+        device_laddr,
+        if authenticated { "si" } else { "no" }
+    );
+
     let cookie: [u8; 4] = rand::random();
     let trans_id: [u8; 12] = rand::random();
     let cid_inverted: Vec<u8> = cid.iter().map(|b| !b).collect();
