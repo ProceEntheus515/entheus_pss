@@ -123,12 +123,14 @@ pub async fn dh_reader(
 
         let packet = session.lock().unwrap().recv(packet);
 
+        // Acusar siempre (incluido Empty) para que el relay siga enviando; Python hace request_ptcp() tras cada no-vacio,
+        // pero el relay puede esperar ack del Empty antes de enviar el Payload con la respuesta RTSP.
+        let p = session.lock().unwrap().send(PTCPBody::Empty);
+        socket.ptcp_request(p).await;
+
         if let PTCPBody::Empty = packet.body {
             continue;
         }
-
-        let p = session.lock().unwrap().send(PTCPBody::Empty);
-        socket.ptcp_request(p).await;
 
         match packet.body {
             PTCPBody::Status(realm, status) => {
