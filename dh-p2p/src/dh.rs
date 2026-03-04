@@ -234,14 +234,10 @@ pub async fn p2p_handshake(
     let relay_body = relay_agent_res
         .body
         .ok_or("[fase:relay/agent] Respuesta sin body")?;
-    let token = relay_body
-        .get("body/Token")
-        .ok_or("[fase:relay/agent] Respuesta sin Token")?
-        .clone();
-    let agent = relay_body
-        .get("body/Agent")
-        .ok_or("[fase:relay/agent] Respuesta sin Agent")?
-        .clone();
+    let token = DHResponse::get_body_key(&relay_body, "body/Token")
+        .ok_or("[fase:relay/agent] Respuesta sin Token (clave body/Token)")?;
+    let agent = DHResponse::get_body_key(&relay_body, "body/Agent")
+        .ok_or("[fase:relay/agent] Respuesta sin Agent (clave body/Agent)")?;
 
     println!(
         "[relay] Agent={}, Token={}...{}",
@@ -725,10 +721,17 @@ impl DHResponse {
         tree
     }
 
+    /// Obtiene un valor del body probando la clave y su variante en minusculas (por si el servidor normaliza XML).
+    fn get_body_key(body: &HashMap<String, String>, key: &str) -> Option<String> {
+        body.get(key)
+            .or_else(|| body.get(&key.to_lowercase()))
+            .cloned()
+    }
+
     fn parse_response(res: &str) -> DHResponse {
-        let mut parts = res.split("\r\n\r\n");
+        let mut parts = res.splitn(2, "\r\n\r\n");
         let head = parts.next().unwrap();
-        let body = parts.next().unwrap();
+        let body = parts.next().unwrap_or("");
 
         let mut head_parts = head.split("\r\n");
         let mut status_line = head_parts.next().unwrap().split(" ");
@@ -738,9 +741,13 @@ impl DHResponse {
 
         let mut headers = HashMap::new();
         for line in head_parts {
-            let mut parts = line.split(": ");
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let mut parts = line.splitn(2, ": ");
             let key = parts.next().unwrap().to_string();
-            let value = parts.next().unwrap().to_string();
+            let value = parts.next().unwrap_or("").trim().to_string();
             headers.insert(key, value);
         }
 
