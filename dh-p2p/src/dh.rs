@@ -87,14 +87,14 @@ fn ip_to_bytes_raw(ip: &str) -> Vec<u8> {
 }
 
 fn log_raw_packet(label: &str, data: &[u8]) {
-    println!(
-        "{} [{}]",
-        label,
-        data.iter()
-            .map(|b| format!("{:02x}", b))
-            .collect::<Vec<_>>()
-            .join(" ")
-    );
+    println!("[hexdump] {} ({} bytes)", label, data.len());
+    for (i, chunk) in data.chunks(16).enumerate() {
+        print!("{:04x}: ", i * 16);
+        for b in chunk {
+            print!("{:02x} ", b);
+        }
+        println!();
+    }
 }
 
 struct DeviceAuth {
@@ -839,6 +839,8 @@ impl DHP2P for UdpSocket {
         println!("{}", req);
         println!("---");
 
+        log_raw_packet("[dh] >>", req.as_bytes());
+
         self.send(req.as_bytes()).await.unwrap();
     }
 
@@ -874,6 +876,8 @@ impl DHP2P for UdpSocket {
         println!("{}", req);
         println!("---");
 
+        log_raw_packet("[dh] >> (via send_to)", req.as_bytes());
+
         use std::net::ToSocketAddrs;
         let dest: std::net::SocketAddr = addr
             .to_socket_addrs()
@@ -904,6 +908,10 @@ impl DHP2P for UdpSocket {
                 ))
             }
         };
+
+        let label = format!("DH desde {}", peer);
+        log_raw_packet(&label, &buf[0..n]);
+
         let raw = String::from_utf8_lossy(&buf[0..n]);
 
         // Diagnostico: detectar paquetes UDP con XML duplicado/corrupto
