@@ -473,7 +473,11 @@ pub async fn p2p_handshake(
     socket2
         .ptcp_request(relay_session.send(PTCPBody::Sync))
         .await;
-    relay_session.recv(socket2.ptcp_read().await);
+    let sync_pkt = socket2
+        .ptcp_try_read()
+        .await
+        .map_err(|e| format!("[fase:ptcp-sync] {} (relay no respondio en 30s)", e))?;
+    relay_session.recv(sync_pkt);
 
     if matches!(mode, ConnectionMode::Relay) {
         println!("[smart] Modo relay forzado - sesion PTCP lista");
@@ -491,10 +495,18 @@ pub async fn p2p_handshake(
             b"\x17\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00".to_vec(),
         )))
         .await;
-    let mut ptcp_res = relay_session.recv(socket2.ptcp_read().await);
+    let pkt = socket2
+        .ptcp_try_read()
+        .await
+        .map_err(|e| format!("[fase:ptcp-sign] {} (relay no respondio en 30s)", e))?;
+    let mut ptcp_res = relay_session.recv(pkt);
 
     while let PTCPBody::Empty = ptcp_res.body {
-        ptcp_res = relay_session.recv(socket2.ptcp_read().await);
+        let pkt = socket2
+            .ptcp_try_read()
+            .await
+            .map_err(|e| format!("[fase:ptcp-sign] {}", e))?;
+        ptcp_res = relay_session.recv(pkt);
     }
 
     let sign = match ptcp_res.body {
