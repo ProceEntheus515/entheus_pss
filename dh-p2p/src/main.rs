@@ -137,22 +137,50 @@ async fn main() {
             }
         };
 
-        let connection = match p2p_handshake(
-            socket,
-            serial.clone(),
-            &mode,
-            args.username.as_deref(),
-            args.password.as_deref(),
-        )
-        .await
-        {
-            Ok(conn) => conn,
-            Err(e) => {
-                println!("[tunnel] Handshake fallido: {}", e);
-                println!("[tunnel] El cliente sera desconectado. Esperando nuevo cliente...");
-                drop(pending_client);
-                tokio::time::sleep(Duration::from_secs(3)).await;
-                continue;
+        let connection = {
+            let mut last_err = String::new();
+            let mut conn_opt = None;
+            for handshake_attempt in 0..2 {
+                if handshake_attempt > 0 {
+                    println!("[tunnel] Reintento de handshake (2/2)...");
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                }
+                let sock = if handshake_attempt == 0 {
+                    socket
+                } else {
+                    match UdpSocket::bind("0.0.0.0:0").await {
+                        Ok(s) => s,
+                        Err(e) => {
+                            println!("[tunnel] Error creando socket en reintento: {}", e);
+                            break;
+                        }
+                    }
+                };
+                match p2p_handshake(
+                    sock,
+                    serial.clone(),
+                    &mode,
+                    args.username.as_deref(),
+                    args.password.as_deref(),
+                )
+                .await
+                {
+                    Ok(conn) => {
+                        conn_opt = Some(conn);
+                        break;
+                    }
+                    Err(e) => last_err = e,
+                }
+            }
+            match conn_opt {
+                Some(conn) => conn,
+                None => {
+                    println!("[tunnel] Handshake fallido: {}", last_err);
+                    println!("[tunnel] El cliente sera desconectado. Esperando nuevo cliente...");
+                    drop(pending_client);
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                    continue;
+                }
             }
         };
 
@@ -181,9 +209,10 @@ async fn main() {
         let accept_conn_channels = conn_channels.clone();
 
         let hb_tx = dh_tx.clone();
+        let hb_interval_secs = if is_relay { 3 } else { 5 };
         let hb_handle = tokio::spawn(async move {
             loop {
-                tokio::time::sleep(Duration::from_secs(5)).await;
+                tokio::time::sleep(Duration::from_secs(hb_interval_secs)).await;
                 if hb_tx.send(PTCPEvent::Heartbeat).await.is_err() {
                     break;
                 }

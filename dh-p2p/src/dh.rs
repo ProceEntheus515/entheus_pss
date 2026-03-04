@@ -13,6 +13,11 @@ static MAIN_SERVER: &str = "www.easy4ipcloud.com:8800";
 static CLOUD_USERNAME: &str = "cba1b29e32cb17aa46b8ff9e73c7f40b";
 static CLOUD_USERKEY: &str = "996103384cdf19179e19243e959bbf8b";
 
+/// Reintentos para fases relay fragiles (agent y start).
+const RELAY_PHASE_RETRIES: u32 = 3;
+/// Segundos base de espera entre reintentos (intento 1: 0s, 2: 2s, 3: 4s).
+const RELAY_BACKOFF_SECS: u64 = 2;
+
 // ---------------------------------------------------------------------------
 // Tipos publicos para el sistema polivalente
 // ---------------------------------------------------------------------------
@@ -222,46 +227,86 @@ pub async fn p2p_handshake(
         )
         .await;
 
-    // --- Fase 4: Negociar relay (fase mas fragil - depende de que el dispositivo conecte a tiempo) ---
+    // --- Fase 4: Negociar relay (reintentos con backoff; fases fragiles) ---
     println!("[handshake] Negociando relay en {}...", relay);
-    socket2.connect(&relay).await.unwrap();
 
-    socket2.dh_request("/relay/agent", None, &mut cseq).await;
-    let relay_agent_res = socket2
-        .dh_read()
-        .await
-        .map_err(|e| format!("[fase:relay/agent] {}", e))?;
-    let relay_body = relay_agent_res
-        .body
-        .ok_or("[fase:relay/agent] Respuesta sin body")?;
-    let token = DHResponse::get_body_key(&relay_body, "body/Token")
-        .ok_or("[fase:relay/agent] Respuesta sin Token (clave body/Token)")?;
-    let agent = DHResponse::get_body_key(&relay_body, "body/Agent")
-        .ok_or("[fase:relay/agent] Respuesta sin Agent (clave body/Agent)")?;
+    let (token, agent) = 'agent_phase: loop {
+        let mut last_err = String::new();
+        for attempt in 0..RELAY_PHASE_RETRIES {
+            if attempt > 0 {
+                let backoff = RELAY_BACKOFF_SECS * (attempt as u64);
+                println!(
+                    "[relay] Reintento {}/{} relay/agent (esperando {}s)...",
+                    attempt + 1,
+                    RELAY_PHASE_RETRIES,
+                    backoff
+                );
+                time::sleep(time::Duration::from_secs(backoff)).await;
+            }
+            socket2.connect(&relay).await.unwrap();
+            socket2.dh_request("/relay/agent", None, &mut cseq).await;
+            match socket2.dh_read().await {
+                Ok(relay_agent_res) => {
+                    let relay_body = relay_agent_res
+                        .body
+                        .ok_or("[fase:relay/agent] Respuesta sin body")?;
+                    let t = DHResponse::get_body_key(&relay_body, "body/Token")
+                        .ok_or("[fase:relay/agent] Respuesta sin Token (clave body/Token)")?;
+                    let a = DHResponse::get_body_key(&relay_body, "body/Agent")
+                        .ok_or("[fase:relay/agent] Respuesta sin Agent (clave body/Agent)")?;
+                    println!(
+                        "[relay] Agent={}, Token={}...{}",
+                        a,
+                        &t[..std::cmp::min(8, t.len())],
+                        &t[t.len().saturating_sub(8)..]
+                    );
+                    break 'agent_phase (t, a);
+                }
+                Err(e) => {
+                    last_err = format!("[fase:relay/agent] {}", e);
+                    if attempt == RELAY_PHASE_RETRIES - 1 {
+                        return Err(last_err);
+                    }
+                }
+            }
+        }
+        return Err("[relay] relay/agent: sin resultado (imposible)".into());
+    };
 
-    println!(
-        "[relay] Agent={}, Token={}...{}",
-        agent,
-        &token[..std::cmp::min(8, token.len())],
-        &token[token.len().saturating_sub(8)..]
-    );
-
-    socket2.connect(&agent).await.unwrap();
-
-    socket2
-        .dh_request(
-            format!("/relay/start/{}", token).as_ref(),
-            Some("<body><Client>:0</Client></body>"),
-            &mut cseq,
-        )
-        .await;
-    socket2.dh_read().await.map_err(|e| {
-        format!(
-            "[fase:relay/start] {}. Causa probable: el dispositivo no alcanzo \
-             el relay agent a tiempo (NAT lento, rate-limiting, o dispositivo offline).",
-            e
-        )
-    })?;
+    let mut last_err = String::new();
+    for attempt in 0..RELAY_PHASE_RETRIES {
+        if attempt > 0 {
+            let backoff = RELAY_BACKOFF_SECS * (attempt as u64);
+            println!(
+                "[relay] Reintento {}/{} relay/start (esperando {}s)...",
+                attempt + 1,
+                RELAY_PHASE_RETRIES,
+                backoff
+            );
+            time::sleep(time::Duration::from_secs(backoff)).await;
+        }
+        socket2.connect(&agent).await.unwrap();
+        socket2
+            .dh_request(
+                format!("/relay/start/{}", token).as_ref(),
+                Some("<body><Client>:0</Client></body>"),
+                &mut cseq,
+            )
+            .await;
+        match socket2.dh_read().await {
+            Ok(_) => break,
+            Err(e) => {
+                last_err = format!(
+                    "[fase:relay/start] {}. Causa probable: el dispositivo no alcanzo \
+                     el relay agent a tiempo (NAT lento, rate-limiting, o dispositivo offline).",
+                    e
+                );
+                if attempt == RELAY_PHASE_RETRIES - 1 {
+                    return Err(last_err);
+                }
+            }
+        }
+    }
 
     // --- Fase 5: Leer respuesta del dispositivo (deteccion smart de auth) ---
     println!("[smart] Esperando respuesta del dispositivo (puede tardar si hay NAT lento)...");
